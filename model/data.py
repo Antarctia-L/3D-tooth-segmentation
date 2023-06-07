@@ -1,107 +1,96 @@
 import os
 import torch
-import meshio
+import ast
 import numpy as np
+import trimesh
+from sklearn.neighbors import NearestNeighbors
 from torch.utils.data import Dataset
-from UniformSampling import sample_mesh_cells_distance, PointCloudVector, generate_label_to_id
-
-import json
+from UniformSampling import calculate_mesh_centers, reassign_labels, MeshPlotter
+import h5py
 import meshio
-from torch.utils.data import Dataset
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
-list_file_path = os.path.join(parent_dir, 'Data', 'lists.txt')
-
-class CustomPointCloudDataset(Dataset):
-    def __init__(self, obj_files, label_list, transform=None):
-        self.obj_files = obj_files
-        self.label_list = label_list
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.obj_files)
-
-    def pointcloud_sampling(self, mesh):
-        # 使用您的 sample_mesh_cells_distance 函数从 mesh 中采样三角形索引
-        num_samples = 400
-        sampled_indices = sample_mesh_cells_distance(mesh, num_samples)
-
-        # 使用您的 PointCloudVector 函数计算每个采样点的 15 个维度
-        sampled_points = []
-        for idx in sampled_indices:
-            point_vector = PointCloudVector(mesh, idx)
-            sampled_points.append(point_vector)
-
-        # 将点云向量列表转换为一个形状为 (10000, 15) 的 NumPy 数组
-        sampled_points = np.array(sampled_points)
-        assert sampled_points.shape == (num_samples, 15), f"Unexpected shape: {sampled_points.shape}"
-
-        return sampled_points, sampled_indices
-
-    def __getitem__(self, idx):
-        obj_file = self.obj_files[idx]
-        mesh = meshio.read(obj_file)
-        points, indices = self.pointcloud_sampling(mesh)
-
-        label_path = self.label_list[idx]
-        with open(label_path, 'r') as f:
-            labels = json.load(f)
-
-        label = [labels[i] for i in indices]
+list_file_path = os.path.join(parent_dir, 'Data', 'lists_1.txt')
 
 
-        # 假设 num_points 是点云中点的数量，num_features 是每个点的特征数
-        num_points = 400  # 请根据实际情况修改
-        num_features = 15  # 请根据实际情况修改
+def sample_mesh_cells_distance(filepath, filetype, num_samples=10000, n_neighbors=5):
 
-        # 将 points 转换为形状为 (1, num_features, num_points) 的张量
-        points = torch.tensor(points, dtype=torch.float32).view(1, num_features, num_points)
+    mesh = trimesh.load(filepath, file_type=filetype)
+    vertices = mesh.vertices
+    cells = mesh.faces
 
-        sample = {
-            'points': points,
-            'label': torch.tensor(label, dtype=torch.long)
-        }
+    triangle_centers = np.mean(vertices[cells], axis=1)
 
-        if self.transform:
-            sample = self.transform(sample)
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree').fit(triangle_centers)
+    distances, _ = nbrs.kneighbors(triangle_centers)
 
-        return sample
+    weights = np.mean(distances, axis=1)
+    weights /= np.sum(weights)
+
+    sampled_indices = np.random.choice(cells.shape[0], num_samples, replace=False, p=weights)
+
+    vertex1, vertex2, vertex3 = vertices[cells[sampled_indices, 0]], vertices[cells[sampled_indices, 1]], vertices[
+        cells[sampled_indices, 2]]
+    normal = mesh.face_normals[sampled_indices]
+    center = np.mean(vertices[cells[sampled_indices]], axis=1)
+
+    X_input = np.hstack((center, normal,
+                         vertex1 - center,
+                         vertex2 - center,
+                         vertex3 - center))
+
+    return X_input, sampled_indices  # Changed to return two separate values.
 
 
+def main(obj_files, label_list):
+    h5_filename = '/Users/31475/PycharmProjects/Project_3D/Data/data_200_b1_lower.h5'
+
+    if not os.path.exists(h5_filename):
+        with h5py.File(h5_filename, 'w') as _:
+            pass
+
+    with h5py.File(h5_filename, 'a') as h5f:
+        for idx in range(len(obj_files)):
+            print(idx)
+            obj_file = obj_files[idx]
+            points, indices = sample_mesh_cells_distance(obj_file, "obj", num_samples=10000, n_neighbors=5)
+
+            label_path = label_list[idx]
+            f = open(label_path, 'r')
+            labels = ast.literal_eval(f.read())
+            f.close()
+
+            label = [labels[i] for i in indices]
+
+            num_points = 10000
+            num_features = 15
+            points = torch.tensor(points, dtype=torch.float32).view(1, num_features, num_points)
+            print(points.shape)
+
+            # Check if dataset already exists before creating it.
+            if f'points_{idx}' not in h5f:
+                h5f.create_dataset(f'points_{idx}', data=points)
+            if f'label_{idx}' not in h5f:
+                h5f.create_dataset(f'label_{idx}', data=label)
 
 
 def dataset(partition="train"):
-    global obj_files, label_list
     with open(list_file_path, "r") as file:
         content = file.read()
         str_lists = content.split("\n\n")
-        lists = [eval(str_list) for str_list in str_lists]
-        lower_list = lists[0]
-        upper_list = lists[1]
-        lower_label = lists[2]
-        upper_label = lists[3]
+        lists = [ast.literal_eval(str_list) for str_list in str_lists]
+
+        data_list = lists[0][:200]
+        data_label = lists[2][:200]
 
     if partition == 'train':
-        obj_files = lower_list[:5]
-        label_list = lower_label[:5]
-    elif partition == 'test':
-        obj_files = upper_list[:5]
-        label_list = upper_label[:5]
+        obj_files = data_list
+        label_list = data_label
 
-    Dataset = CustomPointCloudDataset(obj_files, label_list)
-    return Dataset
+    main(obj_files, label_list)
 
 
+if __name__ == '__main__':
+    dataset(partition='train')
 
-
-
-
-# obj_files = ['path/to/your/obj/file1.obj', 'path/to/your/obj/file2.obj', ...]
-# labels = [...]
-# from torch.utils.data import DataLoader
-#
-# batch_size = 32
-# num_workers = 4
-# dataset = CustomPointCloudDataset(obj_files, labels, pointcloud_sampling)
-# train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)

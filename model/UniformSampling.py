@@ -7,6 +7,7 @@ from sklearn.neighbors import NearestNeighbors
 import pyvista as pv
 from scipy import stats
 
+
 #  Uniformly sample 10,000 mesh and regard each face center as a point.
 #  1. the position of the face(3)
 #  2. the 3-dimensional normal vector of the face surface(3)
@@ -208,7 +209,7 @@ def PointCloudLabelList(label_path, stl_file):
 
     with open(label_path, 'r') as f:
         json_data = json.load(f)
-        vertex_labels = json_data #['instances']
+        vertex_labels = json_data['labels']
         # print(len(vertex_labels))
 
     cell_labels = []
@@ -232,23 +233,27 @@ def PointCloudLabelList(label_path, stl_file):
     return cell_labels
 
 
+
 def PointCloudVector(mesh, index):
-    your_mesh = mesh #meshio.read(stl_file, file_format="stl")
-    vertices = your_mesh.points[:, :3]
-    cells = your_mesh.cells_dict["triangle"]
-    # print("vertices.shape:", your_mesh.points.shape)
-    # print("cells.shape:", your_mesh.cells[0].data.shape)
+    vertices = mesh.points[:, :3]
+    cells = mesh.cells_dict["triangle"]
 
-    # Get the vertices and normals of the first triangle in the mesh
+    # Get the vertices of the specific triangle
     vertex1, vertex2, vertex3 = vertices[cells[index, 0]], vertices[cells[index, 1]], vertices[cells[index, 2]]
-    normals = compute_triangle_normals(vertices, cells)
-    normal = normals[index]
-    center = (vertices[cells[index, 0]] + vertices[cells[index, 1]] + vertices[cells[index, 2]]) / 3
-    result = list(center) + list(normal) + list(vertex1) + list(vertex2) + list(vertex3)
 
+    # Compute the normal of the specific triangle
+    normal = np.cross(vertex2 - vertex1, vertex3 - vertex1)
+    normal /= np.linalg.norm(normal)
+
+    # Compute the center of the specific triangle
+    center = (vertex1 + vertex2 + vertex3) / 3
+
+    v1 = vertex1 - center
+    v2 = vertex2 - center
+    v3 = vertex3 - center
+
+    result = list(center) + list(normal) + list(v1) + list(v2) + list(v3)
     return result
-
-
 
 
 # 重新分配标签
@@ -280,7 +285,63 @@ def reassign_labels(mesh_centers, sampled_indices, labels, k_values=[2, 3, 5, 7]
 
     return np.array(new_labels)
 
+def rearrange(nparry):
+    # 32 permanent teeth
+    nparry[nparry == 17] = 1
+    nparry[nparry == 37] = 1
+    nparry[nparry == 16] = 2
+    nparry[nparry == 36] = 2
+    nparry[nparry == 15] = 3
+    nparry[nparry == 35] = 3
+    nparry[nparry == 14] = 4
+    nparry[nparry == 34] = 4
+    nparry[nparry == 13] = 5
+    nparry[nparry == 33] = 5
+    nparry[nparry == 12] = 6
+    nparry[nparry == 32] = 6
+    nparry[nparry == 11] = 7
+    nparry[nparry == 31] = 7
+    nparry[nparry == 21] = 8
+    nparry[nparry == 41] = 8
+    nparry[nparry == 22] = 9
+    nparry[nparry == 42] = 9
+    nparry[nparry == 23] = 10
+    nparry[nparry == 43] = 10
+    nparry[nparry == 24] = 11
+    nparry[nparry == 44] = 11
+    nparry[nparry == 25] = 12
+    nparry[nparry == 45] = 12
+    nparry[nparry == 26] = 13
+    nparry[nparry == 46] = 13
+    nparry[nparry == 27] = 14
+    nparry[nparry == 47] = 14
+    nparry[nparry == 18] = 15
+    nparry[nparry == 38] = 15
+    nparry[nparry == 28] = 16
+    nparry[nparry == 48] = 16
+    # deciduous teeth
+    nparry[nparry == 55] = 3
+    nparry[nparry == 55] = 3
+    nparry[nparry == 54] = 4
+    nparry[nparry == 74] = 4
+    nparry[nparry == 53] = 5
+    nparry[nparry == 73] = 5
+    nparry[nparry == 52] = 6
+    nparry[nparry == 72] = 6
+    nparry[nparry == 51] = 7
+    nparry[nparry == 71] = 7
+    nparry[nparry == 61] = 8
+    nparry[nparry == 81] = 8
+    nparry[nparry == 62] = 9
+    nparry[nparry == 82] = 9
+    nparry[nparry == 63] = 10
+    nparry[nparry == 83] = 10
+    nparry[nparry == 64] = 11
+    nparry[nparry == 84] = 11
+    nparry[nparry == 65] = 12
+    nparry[nparry == 85] = 12
 
+    return nparry
 
 
 
@@ -324,6 +385,11 @@ def MeshPlotter(stl_file, labels):
     # 从STL文件中读取原始mesh
     your_mesh = meshio.read(stl_file)
 
+    # 旋转
+    # angle = np.pi / 4.0  # 旋转角度为45度
+    # axis = np.array([0, 1, 0])  # 绕y轴旋转
+    # your_mesh = rotate_mesh(your_mesh, angle, axis)
+
     vertices = your_mesh.points[:, :3]
     cells = your_mesh.cells_dict["triangle"]
 
@@ -332,21 +398,23 @@ def MeshPlotter(stl_file, labels):
 
     # 创建颜色映射
     color_map = {
-        0: [0, 0, 0],  # White
-        1: [0, 255, 0],  # Green
-        2: [0, 0, 255],  # Blue
-        3: [255, 255, 0],  # Yellow
-        4: [255, 0, 255],  # Magenta
-        5: [0, 255, 255],  # Cyan
-        6: [128, 0, 0],  # Dark red
-        7: [0, 128, 0],  # Dark green
-        8: [0, 0, 128],  # Dark blue
-        9: [128, 128, 0],  # Olive
-        10: [128, 0, 128],  # Purple
-        11: [0, 128, 128],  # Teal
-        12: [191, 191, 191],  # Light gray
-        13: [128, 128, 128],  # Gray
-        14: [64, 64, 64],  # Dark gray
+        0: [0.0, 0.0, 0.0],  # Black
+        1: [1.0, 0.0, 0.0],  # Red
+        2: [0.0, 0.0, 0.5],  # Green
+        3: [0.0, 0.0, 0.0],  # Blue
+        4: [0.0, 0.0, 0.0],  # Yellow
+        5: [0.0, 0.0, 0.0],  # Magenta
+        6: [0.0, 0.0, 0.0],  # Cyan
+        7: [0.0, 0.0, 0.0],  # Orange
+        8: [0.0, 0.0, 0.0],  # Purple
+        9: [0.0, 0.0, 0.0],  # Light Blue
+        10: [0.0, 0.0, 0.0],  # Pink
+        11: [0.0, 0.0, 0.0],  # Lime Green
+        12: [0.0, 0.0, 0.0],  # Chartreuse Green
+        13: [0.0, 0.0, 0.0],  # Violet
+        14: [0.0, 0.0, 0.0],  # Olive Green
+        15: [0.0, 0.0, 0.0],  # Teal
+        16: [0.0, 0.0, 0.0],  # Gray
     }
 
     # 根据标签为每个cell分配颜色
@@ -378,97 +446,171 @@ def generate_label_to_id(label_file_paths):
     return label_to_id
 
 
+# 定义旋转函数
+def rotate_mesh(mesh, angle, axis):
+    # 将旋转轴标准化
+    axis = axis / np.sqrt(np.dot(axis, axis))
+
+    # 计算旋转矩阵
+    c = np.cos(angle)
+    s = np.sin(angle)
+    t = 1 - c
+    R = np.array([[t*axis[0]*axis[0] + c, t*axis[0]*axis[1] - s*axis[2], t*axis[0]*axis[2] + s*axis[1]],
+                  [t*axis[0]*axis[1] + s*axis[2], t*axis[1]*axis[1] + c, t*axis[1]*axis[2] - s*axis[0]],
+                  [t*axis[0]*axis[2] - s*axis[1], t*axis[1]*axis[2] + s*axis[0], t*axis[2]*axis[2] + c]])
+
+    # 旋转顶点
+    vertices = mesh.points[:, :3].T
+    vertices = np.dot(R, vertices)
+    mesh.points = vertices.T
+
+    return mesh
+
 
 # # example
-# with open("C:\\Users\\31475\\PycharmProjects\\Project_3D\\Data\\lists.txt", "r") as file:
-#     content = file.read()
-#     str_lists = content.split("\n\n")
-#     lists = [eval(str_list) for str_list in str_lists]
-#
-# lower_list = lists[1]
-# lower_label = lists[3]
-#
+
+
+# #
 # #
 # stl_file = lower_list[99]
 # label_path = lower_label[99]
 # # # sampled_indices, sampled_centers = read_stl_and_sample_points(stl_file)
-# your_mesh = meshio.read(stl_file)
+# mesh = meshio.read(lower_list)
+# 加载3D模型
+# mesh = meshio.read("model.obj")
+# 指定旋转轴和角度进行数据增强
+# angle = np.pi/4.0  # 旋转角度为45度
+# axis = np.array([0, 1, 0])  # 绕y轴旋转
+# rotated_mesh = rotate_mesh(mesh, angle, axis)
+#
+
 #
 # vertices = your_mesh.points[:, :3]
 # cells = your_mesh.cells_dict["triangle"]
 # print(len(cells))
 #
-# with open(label_path, 'r') as f:
+# with open(lower_label, 'r') as f:
 #     json_data = json.load(f)
 #     labels = json_data # ['instances'] # 请用实际的顶点标签列表替换
-# #
+# # #
 # print(len(labels))
 
 # # 读取标签列表
 # L = PointCloudLabelList(label_path, stl_file)
 #
-#
+
 # import json
 # import os
 # import numpy as np
-#
-# class NumpyEncoder(json.JSONEncoder):
-#     def default(self, obj):
-#         if isinstance(obj, np.integer):
-#             return int(obj)
-#         elif isinstance(obj, np.floating):
-#             return float(obj)
-#         elif isinstance(obj, np.ndarray):
-#             return obj.tolist()
-#         else:
-#             return super(NumpyEncoder, self).default(obj)
-#
-# def process_labels(lower_label, lower_list):
-#     for idx, label_path in enumerate(lower_label):
-#         stl_file = lower_list[idx]
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NumpyEncoder, self).default(obj)
+
+def process_labels(lower_label, lower_list):
+    for idx, label_path in enumerate(lower_label):
+        stl_file = lower_list[idx]
+
+        # 重新计算标签列表
+        La = PointCloudLabelList(label_path, stl_file)
+        La = np.array(La)
+        # print(type(La))
+        L = rearrange(La)
+        L = L.tolist()
+        # print(L)
+
+        # 生成新文件名
+        dir_name, file_name = os.path.split(label_path)
+        file_name_without_ext, ext = os.path.splitext(file_name)
+        new_file_name = file_name_without_ext + "_cell" + ext
+        new_label_path = os.path.join(dir_name, new_file_name)
+
+        # 将新的标签列表保存为JSON文件
+        with open(new_label_path, 'w') as outfile:
+            json.dump(L, outfile, cls=NumpyEncoder)
+
+        print(f"Processed {label_path} and saved as {new_label_path}")
+
+# def process_data(lower_list):
+#     for idx, lower_list in enumerate(lower_list):
+#         stl_file = lower_list # [idx]
 #
 #         # 重新计算标签列表
-#         L = PointCloudLabelList(label_path, stl_file)
+#         # L = PointCloudLabelList(label_path, stl_file)
+#         mesh = meshio.read(stl_file)
+#         # 指定旋转轴和角度进行数据增强
+#         angle = np.pi/4.0  # 旋转角度为90度
+#         axis = np.array([0, 1, 0])  # 绕y轴旋转
+#         rotated_mesh = rotate_mesh(mesh, angle, axis)
 #
 #         # 生成新文件名
-#         dir_name, file_name = os.path.split(label_path)
+#         dir_name, file_name = os.path.split(lower_list)
 #         file_name_without_ext, ext = os.path.splitext(file_name)
-#         new_file_name = file_name_without_ext + "_cell" + ext
+#         new_file_name = file_name_without_ext + "_y45" + ext
 #         new_label_path = os.path.join(dir_name, new_file_name)
 #
 #         # 将新的标签列表保存为JSON文件
-#         with open(new_label_path, 'w') as outfile:
-#             json.dump(L, outfile, cls=NumpyEncoder)
+#         # with open(new_label_path, 'w') as outfile:
+#         #     json.dump(L, outfile, cls=NumpyEncoder)
+#         meshio.write(new_label_path, rotated_mesh)
 #
-#         print(f"Processed {label_path} and saved as {new_label_path}")
-#
-# # 调用函数处理所有lower_label中的路径
-# process_labels(lower_label, lower_list)
+#         print(f"Processed {lower_list} and saved as {new_label_path}")
 
-
-# # 读取 mesh 和标签
-# labels = L# 从文件或其他来源获取已知的标签列表
+# 调用函数处理所有lower_label中的路径
+# import ast
+#     # dataset = h5f[key]
+#     #     print(f"Dataset shape: {dataset.shape}")
+#     #     print(f"Dataset dtype: {dataset.dtype}")
+#     #
+#     #     print(f"First few elements: {dataset[:5]}")
+# with open("C:\\Users\\31475\\PycharmProjects\\Project_3D\\Data\\lists.txt", "r") as file:
+#     content = file.read()
+#     str_lists = content.split("\n\n")
+#     lists = [ast.literal_eval(str_list) for str_list in str_lists]
+# #
+# #
+# # # #
+# List = lists[1]
+# label_ = lists[3]
+# # print(len(List))
+# # # print(List[0])
+# process_labels(label_, List)
+# List = 'C:\\Users\\31475\\PycharmProjects\\Project_3D\\Data\\3D_scans_per_patient_obj_files_b1\\013FHA7K\\013FHA7K_lower.obj'
+# label = 'C:\\Users\\31475\\PycharmProjects\\Project_3D\\Data\\ground-truth_labels_instances_b1\\013FHA7K\\013FHA7K_lower_cell.json'
 #
-# # 计算 mesh 中心点
-# mesh_centers = calculate_mesh_centers(stl_file)
+# with open(label, 'r') as f:
+#     json_data = json.load(f)
+#     labels = json_data#['labels'] # 请用实际的顶点标签列表替换
 #
-# # 已知采样索引
-# # sampled_indices = weighted_random_sampling(stl_file, L)
-# # print(len(sampled_indices))
-# num_samples = 10_000
-# # sampled_indices = np.random.choice(182645, num_samples, replace=False)
-# sampled_indices = sample_mesh_cells_distance(stl_file, num_samples)
-# # sampled_indices, sampled_centers = read_stl_and_sample_points(stl_file)
-# # 从文件或其他来源获取采样索引列表
 #
-# # 重新分配标签
+# # # #
+# #
+# # # 计算 mesh 中心点
+# mesh_centers = calculate_mesh_centers(List)
+# # # 已知采样索引
+# # # sampled_indices = weighted_random_sampling(stl_file, L)
+# # # print(len(sampled_indices))
+# num_samples = 10000
+# # # # sampled_indices = np.random.choice(182645, num_samples, replace=False)
+# # #sampled_indices = sample_mesh_cells_distance(List, num_samples)
+# sampled_indices, sampled_centers = read_stl_and_sample_points(List)
+# # # 从文件或其他来源获取采样索引列表
+# # #
+# # # # 重新分配标签
 # new_labels = reassign_labels(mesh_centers, sampled_indices, labels)
 # print(len(new_labels))
-#
-# # 可视化原模型和KNN模型
-# MeshPlotter(stl_file, labels)
-# MeshPlotter(stl_file, new_labels)
-# # print(index)
-# # print(Results)
-# # print("label:", Label)
+# # #
+# # # # 可视化原模型和KNN模型
+# # # MeshPlotter(lower_list, labels)
+# MeshPlotter(List, labels)
+# # # # print(index)
+# # # # print(Results)
+# # # # print("label:", Label)
 
