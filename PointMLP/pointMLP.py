@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import einsum
 from einops import rearrange, repeat
-from curvenet_util import *
+from helper import *
 
 curve_config = {
         'default': [[100, 5], [100, 5], None, None, None]
