@@ -2,7 +2,6 @@ import os
 import torch
 import h5py
 import ast
-import json
 import numpy as np
 import trimesh
 import h5py
@@ -15,7 +14,8 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib.cm
 import plotly.graph_objects as go
-from scipy import stats
+
+from helper import *
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -51,26 +51,26 @@ def sample_mesh_cells_distance(filepath, filetype, num_samples=10000, n_neighbor
 
     sampled_indices = np.random.choice(cells.shape[0], num_samples, replace=False, p=weights)
     #print(len(sampled_indices))
-    # vector_24d = np.zeros((num_samples, 24))
-    # sampled_cells = cells[sampled_indices]
-    # sampled_triangle_centers = triangle_centers[sampled_indices]
-    # normals = mesh.vertex_normals
+    vector_24d = np.zeros((num_samples, 24))
+    sampled_cells = cells[sampled_indices]
+    sampled_triangle_centers = triangle_centers[sampled_indices]
+    normals = mesh.vertex_normals
 
-    # for i in range(num_samples):
-    #     vector_24d[i, :12] = np.hstack((vertices[sampled_cells[i]].ravel(), sampled_triangle_centers[i]))
-    #     vector_24d[i, 12:] = np.hstack((normals[sampled_cells[i]].ravel(), normals[sampled_cells[i]].mean(axis=0)))
-    vertex1, vertex2, vertex3 = vertices[cells[sampled_indices, 0]], vertices[cells[sampled_indices, 1]], vertices[
-        cells[sampled_indices, 2]]
-    normal = mesh.face_normals[sampled_indices]
-    center = np.mean(vertices[cells[sampled_indices]], axis=1)
+    for i in range(num_samples):
+        vector_24d[i, :12] = np.hstack((vertices[sampled_cells[i]].ravel(), sampled_triangle_centers[i]))
+        vector_24d[i, 12:] = np.hstack((normals[sampled_cells[i]].ravel(), normals[sampled_cells[i]].mean(axis=0)))
+    # vertex1, vertex2, vertex3 = vertices[cells[sampled_indices, 0]], vertices[cells[sampled_indices, 1]], vertices[
+    #     cells[sampled_indices, 2]]
+    # normal = mesh.face_normals[sampled_indices]
+    # center = np.mean(vertices[cells[sampled_indices]], axis=1)
 
-    X_input = np.hstack((center, normal,
-                         vertex1 - center,
-                         vertex2 - center,
-                         vertex3 - center))
-    # return vector_24d, sampled_indices
+    # X_input = np.hstack((center, normal,
+    #                      vertex1 - center,
+    #                      vertex2 - center,
+    #                      vertex3 - center))
+    return vector_24d, sampled_indices
     #print(X_input.shape)
-    return X_input, sampled_indices  # Changed to return two separate values.
+    # return X_input, sampled_indices  # Changed to return two separate values.
 
 
 def DataProcessing(test_file, label_cells, num_points, num_classes):
@@ -88,122 +88,6 @@ def DataProcessing(test_file, label_cells, num_points, num_classes):
    
 
     return points, labels
-
-
-def PointCloudLabelList(data_filename, label_filename):
-    mesh = trimesh.load_mesh(data_filename)
-    vertices = mesh.vertices
-    cells = mesh.faces
-
-    with open(label_filename, 'r') as f:
-        json_data = json.load(f)
-        vertex_labels = json_data['labels']
-        # print(len(vertex_labels))
-
-    cell_labels = []
-    for cell in cells:
-
-        vertex_labels_of_cell = [vertex_labels[cell[0]], vertex_labels[cell[1]], vertex_labels[cell[2]]]
-
-        if len(set(vertex_labels_of_cell)) == 3:
-            # Compute the center of the triangle
-            center = (vertices[cell[0]] + vertices[cell[1]] + vertices[cell[2]]) / 3
-            # Calculate the distances to the center
-            distances = [np.linalg.norm(vertices[cell[i]] - center) for i in range(3)]
-            # Get the index of the closest vertex
-            closest_vertex_index = np.argmin(distances)
-            # Add the label of the closest vertex to the cell_labels list
-            cell_labels.append(vertex_labels_of_cell[closest_vertex_index])
-        else:
-            # Find the most frequent label and add it to the cell_labels list
-            cell_labels.append(stats.mode(vertex_labels_of_cell)[0][0])
-
-    return cell_labels
-
-
-def rearrange(nparry):
-    # 32 permanent teeth
-    nparry[nparry == 17] = 1
-    nparry[nparry == 37] = 1
-    nparry[nparry == 16] = 2
-    nparry[nparry == 36] = 2
-    nparry[nparry == 15] = 3
-    nparry[nparry == 35] = 3
-    nparry[nparry == 14] = 4
-    nparry[nparry == 34] = 4
-    nparry[nparry == 13] = 5
-    nparry[nparry == 33] = 5
-    nparry[nparry == 12] = 6
-    nparry[nparry == 32] = 6
-    nparry[nparry == 11] = 7
-    nparry[nparry == 31] = 7
-    nparry[nparry == 21] = 8
-    nparry[nparry == 41] = 8
-    nparry[nparry == 22] = 9
-    nparry[nparry == 42] = 9
-    nparry[nparry == 23] = 10
-    nparry[nparry == 43] = 10
-    nparry[nparry == 24] = 11
-    nparry[nparry == 44] = 11
-    nparry[nparry == 25] = 12
-    nparry[nparry == 45] = 12
-    nparry[nparry == 26] = 13
-    nparry[nparry == 46] = 13
-    nparry[nparry == 27] = 14
-    nparry[nparry == 47] = 14
-    nparry[nparry == 18] = 15
-    nparry[nparry == 38] = 15
-    nparry[nparry == 28] = 16
-    nparry[nparry == 48] = 16
-    # deciduous teeth
-    nparry[nparry == 55] = 3
-    nparry[nparry == 55] = 3
-    nparry[nparry == 54] = 4
-    nparry[nparry == 74] = 4
-    nparry[nparry == 53] = 5
-    nparry[nparry == 73] = 5
-    nparry[nparry == 52] = 6
-    nparry[nparry == 72] = 6
-    nparry[nparry == 51] = 7
-    nparry[nparry == 71] = 7
-    nparry[nparry == 61] = 8
-    nparry[nparry == 81] = 8
-    nparry[nparry == 62] = 9
-    nparry[nparry == 82] = 9
-    nparry[nparry == 63] = 10
-    nparry[nparry == 83] = 10
-    nparry[nparry == 64] = 11
-    nparry[nparry == 84] = 11
-    nparry[nparry == 65] = 12
-    nparry[nparry == 85] = 12
-
-    return nparry
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        else:
-            return super(NumpyEncoder, self).default(obj)
-
-
-def process_labels(data_filename, label_filename):
-    
-    # 重新计算标签列表
-    label_cell = PointCloudLabelList(data_filename, label_filename)
-    label_cell = np.array(label_cell)
-    # print(type(La))
-    label_cell_rerrange = rearrange(label_cell)
-    label_cell_rerrange = label_cell_rerrange.tolist()
-    #print(len(label_cell_rerrange))
-
-
-    return label_cell_rerrange # new_label_path
-
 
 
 def test_model(points, labels, checkpoint_path, checkpoint_name, device):
@@ -232,7 +116,7 @@ def test_model(points, labels, checkpoint_path, checkpoint_name, device):
     # test_dataset = Mesh_Dataset(data_list_path=input_file,
     test_dataset = Mesh_Dataset(points = points, labels = labels,
                                 num_classes=num_classes,
-                                patch_size=10000)
+                                patch_size=8000)
 
     test_loader = DataLoader(dataset=test_dataset,
                              batch_size=2,
@@ -287,9 +171,8 @@ def upsample(predict, points, data_filename, label_cells):
     mesh = trimesh.load_mesh(data_filename)
     # angle = np.pi / 2  # Rotate 90 degrees
     # rotation_matrix = trimesh.transformations.rotation_matrix(angle, [0, 0, 1])  # Rotate around z-axis
-    
-    # # Apply rotation
     # mesh.apply_transform(rotation_matrix)
+
     centroids = mesh.triangles_center
     #print(centroids.shape)
 
@@ -309,53 +192,6 @@ def upsample(predict, points, data_filename, label_cells):
     #print("gold label size:", l.shape)
 
     return predicted_labels, l
-
-
-def visualization(data_filename, labels):
-
-    mesh = trimesh.load_mesh(data_filename)
-    cell_labels = np.array(labels)
-    unique_labels = np.unique(cell_labels)
-    label_colors = matplotlib.cm.get_cmap('tab20')
-
-    face_colors = np.zeros((len(mesh.faces), 3))
-    for i, label in enumerate(unique_labels):
-        face_colors[cell_labels == label] = label_colors(label / 16)[:-1]  # 只提取 RGB 颜色值，而不是 RGBA
-
-    # face_colors = np.ones((len(mesh.faces), 3))
-    mesh.visual.face_colors = (face_colors * 255).astype(np.uint8)
-
-    # 可视化
-    mesh.show()
-
-
-def calculate_metrics(tensor1, tensor2, num_classes):
-    intersection = torch.zeros(num_classes, dtype=torch.float)
-    union = torch.zeros(num_classes, dtype=torch.float)
-    true_positives = torch.zeros(num_classes, dtype=torch.float)
-    false_positives = torch.zeros(num_classes, dtype=torch.float)
-    false_negatives = torch.zeros(num_classes, dtype=torch.float)
-
-    for class_idx in range(num_classes):
-        class_mask1 = (tensor1 == class_idx)
-        class_mask2 = (tensor2 == class_idx)
-
-        intersection[class_idx] = (class_mask1 & class_mask2).sum().float()
-        union[class_idx] = (class_mask1 | class_mask2).sum().float()
-        true_positives[class_idx] = intersection[class_idx]
-        false_positives[class_idx] = (class_mask1 & ~class_mask2).sum().float()
-        false_negatives[class_idx] = (~class_mask1 & class_mask2).sum().float()
-
-    miou = intersection / union
-    valid_classes = torch.isnan(miou) == False
-    miou = miou[valid_classes]
-    
-    acc = (true_positives.sum() / len(tensor1)).item()
-    sen = (true_positives[valid_classes] / (true_positives[valid_classes] + false_negatives[valid_classes] + 1e-8)).mean().item()
-    dsc = (2 * true_positives[valid_classes] / (2 * true_positives[valid_classes] + false_positives[valid_classes] + false_negatives[valid_classes] + 1e-8)).mean().item()
-    ppv = (true_positives[valid_classes] / (true_positives[valid_classes] + false_positives[valid_classes] + 1e-8)).mean().item()
-
-    return miou.mean().item(), acc, sen, dsc, ppv
 
 
 

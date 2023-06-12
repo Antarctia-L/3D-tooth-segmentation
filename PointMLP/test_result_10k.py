@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
     #checkpoint path
     checkpoint_path = os.path.join(parent_dir, 'tooth_mesh_seg-master', 'models')
-    checkpoint_name = 'Mesh_Segementation_300samples_2.0_best.tar'
+    checkpoint_name = 'Mesh_Segementation_520samples_2.0_best.tar'
 
     #produce test file
     points, labels = DataProcessing(obj_files, label_cells, num_points, num_classes)
