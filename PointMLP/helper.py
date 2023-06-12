@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import trimesh
 import numpy as np
 import json
-
+import matplotlib.cm
 from scipy import stats
 from time import time
 
