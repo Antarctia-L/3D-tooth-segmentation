@@ -36,9 +36,8 @@ def sample_mesh_cells_distance(filepath, filetype, num_samples=10000, n_neighbor
     # Define rotation matrix
     angle = np.pi / 2  # Rotate 90 degrees
     rotation_matrix = trimesh.transformations.rotation_matrix(angle, [0, 0, 1])  # Rotate around z-axis
-    
     # Apply rotation
-    # mesh.apply_transform(rotation_matrix)
+    mesh.apply_transform(rotation_matrix)
 
     vertices = mesh.vertices
     cells = mesh.faces
@@ -169,9 +168,9 @@ def upsample(predict, points, data_filename, label_cells):
 
 
     mesh = trimesh.load_mesh(data_filename)
-    # angle = np.pi / 2  # Rotate 90 degrees
-    # rotation_matrix = trimesh.transformations.rotation_matrix(angle, [0, 0, 1])  # Rotate around z-axis
-    # mesh.apply_transform(rotation_matrix)
+    angle = np.pi / 2  # Rotate 90 degrees
+    rotation_matrix = trimesh.transformations.rotation_matrix(angle, [0, 0, 1])  # Rotate around z-axis
+    mesh.apply_transform(rotation_matrix)
 
     centroids = mesh.triangles_center
     #print(centroids.shape)
