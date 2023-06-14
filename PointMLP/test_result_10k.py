@@ -241,7 +241,11 @@ if __name__ == '__main__':
     print("PPV:", ppv)
 
     #visualization
-    #visualization(obj_files, upsample_label)
+    mesh = trimesh.load_mesh(data)
+    angle = np.pi / 2  # Rotate 90 degrees
+    rotation_matrix = trimesh.transformations.rotation_matrix(angle, [0, 0, 1])  # Rotate around z-axis
+    mesh.apply_transform(rotation_matrix)
+    visualization(mesh, upsample_label)
 
     #save
     # mesh = trimesh.load_mesh(obj_files)

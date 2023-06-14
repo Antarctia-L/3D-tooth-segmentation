@@ -756,9 +756,9 @@ def process_labels(data_filename, label_filename):
 
     return label_cell_rerrange # new_label_path
 
-def visualization(data_filename, labels):
+def visualization(mesh, labels):
 
-    mesh = trimesh.load_mesh(data_filename)
+    # mesh = trimesh.load_mesh(data_filename)
     cell_labels = np.array(labels)
     unique_labels = np.unique(cell_labels)
     label_colors = matplotlib.cm.get_cmap('tab20')

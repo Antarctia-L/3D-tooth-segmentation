@@ -242,7 +242,8 @@ if __name__ == '__main__':
     print("PPV:", ppv)
 
     #visualization
-    #visualization(obj_files, upsample_label)
+    mesh = trimesh.load_mesh(data)
+    visualization(mesh, upsample_label)
 
     #save
     # mesh = trimesh.load_mesh(obj_files)
