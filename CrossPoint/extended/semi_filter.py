@@ -26,10 +26,6 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 list_file_path = os.path.join(parent_dir, 'Data', 'lists_1.txt')
 
-# 思路
-# 挑选文件，制作点云，在所有标签内挑四个，分割成五个列表，
-# 每个列表的每个中心点只搜索列表内标签的相似度并且挑最大的一个保存，最后加上那四个点
-
 # Select one test file (empty mesh)
 with open(list_file_path, "r") as file:
     content = file.read()
