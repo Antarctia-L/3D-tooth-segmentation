@@ -28,13 +28,10 @@ def load_data_partseg(partition):
     all_label = []
     all_seg = []
     if partition == 'train':
-        file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_900_train.h5')) # \
-              #  + glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_10_val_b1.h5'))
-        # file = glob.glob(os.path.join(DATA_DIR, 'shapenet_part_seg_hdf5_data', '*train*.h5')) \
-        #        + glob.glob(os.path.join(DATA_DIR, 'shapenet_part_seg_hdf5_data', '*val*.h5'))
+        file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_900_train.h5')) 
+    elif partition == 'test':
+        file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_250_test.h5'))
     else:
-        # file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', '*%s*.h5'%partition))
-        # file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_20_test_b1.h5'))
         file = glob.glob(os.path.join(DATA_DIR, 'crosspoint_data', 'crosspoint_50_val.h5'))
 
     for h5_name in file:

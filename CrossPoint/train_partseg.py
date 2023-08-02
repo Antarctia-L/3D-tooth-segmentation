@@ -8,26 +8,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
-
 from datasets.shapenet_part import ShapeNetPart
 from models.dgcnn import DGCNN_partseg
 from torch.utils.data import DataLoader
 from util import cal_loss, IOStream
 import wandb
-
 global class_cnts
 class_indexs = np.zeros((16,), dtype=int)
-# global visual_warning
-# visual_warning = True
+
 
 class_choices = ['airplane', 'bag', 'cap', 'car', 'chair', 'earphone', 'guitar', 'knife', 'lamp', 'laptop', 'motorbike', 'mug', 'pistol', 'rocket', 'skateboard', 'table']
 seg_num = [4, 2, 2, 4, 4, 3, 3, 2, 4, 2, 6, 2, 3, 3, 3, 3]
 index_start = [0, 4, 6, 8, 12, 16, 19, 22, 24, 28, 30, 36, 38, 41, 44, 47]
-
-# class_choices = ['tooth']
-# seg_num = [17]
-# index_start = [0]
-
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -122,20 +114,15 @@ def train(args, io):
         train_label_seg = []
         for data, label, seg in train_loader:
             seg = seg - seg_start_index
-            #print("seg", seg)
             label_one_hot = np.zeros((label.shape[0], 16))
             for idx in range(label.shape[0]):
                 label_one_hot[idx, label[idx]] = 1
             label_one_hot = torch.from_numpy(label_one_hot.astype(np.float32))
-            #print("label_one_hot", label_one_hot.shape)
             data, label_one_hot, seg = data.to(device), label_one_hot.to(device), seg.to(device)
-            #print("data", data.shape)
-            #print("seg", seg.shape)
             data = data.permute(0, 2, 1)
             batch_size = data.size()[0]
             opt.zero_grad()
             seg_pred = model(data, label_one_hot)
-            #print("seg_pred", seg_pred.shape)
             seg_pred = seg_pred.permute(0, 2, 1).contiguous()
             loss = criterion(seg_pred.view(-1, seg_num_all), seg.view(-1,1).squeeze())
             loss.backward()
@@ -144,9 +131,7 @@ def train(args, io):
             count += batch_size
             train_loss += loss.item() * batch_size
             seg_np = seg.cpu().numpy()                  # (batch_size, num_points)
-            #print("seg_np", seg_np.shape)
             pred_np = pred.detach().cpu().numpy()       # (batch_size, num_points)
-            #print("pred_np", pred_np.shape)
             train_true_cls.append(seg_np.reshape(-1))       # (batch_size * num_points)
             train_pred_cls.append(pred_np.reshape(-1))      # (batch_size * num_points)
             train_true_seg.append(seg_np)
@@ -161,17 +146,12 @@ def train(args, io):
                 for param_group in opt.param_groups:
                     param_group['lr'] = 1e-5
         train_true_cls = np.concatenate(train_true_cls)
-        #print("train_true_cls", len(train_true_cls))
         train_pred_cls = np.concatenate(train_pred_cls)
-        #print("train_pred_cls", len(train_pred_cls))
         train_acc = metrics.accuracy_score(train_true_cls, train_pred_cls)
         avg_per_class_acc = metrics.balanced_accuracy_score(train_true_cls, train_pred_cls)
         train_true_seg = np.concatenate(train_true_seg, axis=0)
-        #print("train_true_seg", train_true_seg.shape)
         train_pred_seg = np.concatenate(train_pred_seg, axis=0)
-        #print('train_pred_seg', train_pred_seg.shape)
         train_label_seg = np.concatenate(train_label_seg)
-        #print('train_label_seg', train_label_seg)
         train_ious = calculate_shape_IoU(train_pred_seg, train_true_seg, train_label_seg, args.class_choice)
         outstr = 'Train %d, loss: %.6f, train acc: %.6f, train avg acc: %.6f, train iou: %.6f' % (epoch, 
                                                               train_loss*1.0/count,
@@ -254,23 +234,7 @@ def test(args, io):
     model_path = args.pretrained_path
     net = torch.load(model_path, map_location=device)
     model.load_state_dict(net, strict=False)
-    # seg_num_all = test_loader.dataset.seg_num_all
-    # seg_start_index = test_loader.dataset.seg_start_index
-    # # partseg_colors = test_loader.dataset.partseg_colors
-    # if args.model == 'dgcnn':
-    #     model = DGCNN_partseg(args, seg_num_all).to(device)
-    # else:
-    #     raise Exception("Not implemented")
-    # model = nn.DataParallel(model)
-    # # model.load_state_dict(torch.load("model_200_300ep_acc81_iou81_8000.pth"), map_location=torch.device)
-    # # net = torch.load('model_200_300ep_acc81_iou81_8000.t7', map_location=device)  
-    
-    # model_path = args.pretrained_path
-    # net = torch.load("dgcnn_partseg_best.pth", map_location=device)
-    # model.load_state_dict(net, strict=False)
-    # state_dict = torch.load('model_200_300ep_acc81_iou81_8000.t7')
-    # model.load_state_dict(state_dict, strict=False)
-    # torch.save(model.state_dict(), 'model_200_300ep_acc81_iou81_8000.pth')
+   
     
     # model.load_state_dict(torch.load('model_200_300ep_acc81_iou81_8000.t7'), map_location=torch.device)
     model = model.eval()
