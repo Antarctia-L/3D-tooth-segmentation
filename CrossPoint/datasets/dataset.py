@@ -9,7 +9,7 @@ from sklearn.neighbors import NearestNeighbors
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
-list_file_path = os.path.join(parent_dir, 'Data', 'lists_1.txt') # List file saved in dataloader.py
+list_file_path = os.path.join(parent_dir, 'Data', 'lists_1.txt')
 
 
 def sample_mesh_cells_distance(filepath, filetype, num_points, n_neighbors=5):
@@ -18,6 +18,7 @@ def sample_mesh_cells_distance(filepath, filetype, num_points, n_neighbors=5):
     vertices = mesh.vertices
     cells = mesh.faces
     triangle_centers = np.mean(vertices[cells], axis=1)
+
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree').fit(triangle_centers)
     distances, _ = nbrs.kneighbors(triangle_centers)
 
@@ -26,44 +27,20 @@ def sample_mesh_cells_distance(filepath, filetype, num_points, n_neighbors=5):
 
     np.random.seed(42)  # random seed
     sampled_indices = np.random.choice(cells.shape[0], num_points, replace=False, p=weights)
-
-    #  15 features
-    vertex1, vertex2, vertex3 = vertices[cells[sampled_indices, 0]], vertices[cells[sampled_indices, 1]], vertices[
-        cells[sampled_indices, 2]]
-    normal = mesh.face_normals[sampled_indices]
     center = np.mean(vertices[cells[sampled_indices]], axis=1)
+    center_min = np.min(center)
+    center_max = np.max(center)
+    center_normalized = (center - center_min) / (center_max - center_min) * 2 - 1
 
-    X_input = np.hstack((center, normal,
-                         vertex1 - center,
-                         vertex2 - center,
-                         vertex3 - center))
-
-    return X_input, sampled_indices 
-    
-    # # 24 features
-    # vector_24d = np.zeros((num_samples, 24))
-    # sampled_cells = cells[sampled_indices]
-    # sampled_triangle_centers = triangle_centers[sampled_indices]
-    # normals = mesh.vertex_normals
-    #
-    # for i in range(num_samples):
-    #     # Coordinates of the vertex and center
-    #     vector_24d[i, :12] = np.hstack((vertices[sampled_cells[i]].ravel(), sampled_triangle_centers[i]))
-    #     # Normal vectors of the vertex and center
-    #     vector_24d[i, 12:] = np.hstack((normals[sampled_cells[i]].ravel(), normals[sampled_cells[i]].mean(axis=0)))
-    
-    # return vector_24d, sampled_indices
+    X_input = np.hstack(center_normalized)
+    return X_input, sampled_indices  
 
 
 def main(obj_files, label_list):
-    # dataset file path
     h5_filename = '/Users/31475/PycharmProjects/Project_3D/Data/crosspoint_100_test.h5'
-    num_points = 10000
-    num_features = 15
-    # num_points = 8000
-    # num_features = 24
-    num_classes = 17
-
+    num_points = 8000
+    num_features = 3
+    
     if not os.path.exists(h5_filename):
         with h5py.File(h5_filename, 'w') as _:
             pass
@@ -78,33 +55,33 @@ def main(obj_files, label_list):
             labels = ast.literal_eval(f.read())
             f.close()
 
+            labels = torch.ones((1, 1), dtype=torch.int64)
             points = torch.tensor(points, dtype=torch.float32).view(1, num_points, num_features)
-            label = [labels[i] for i in indices]
-            label_tensor = torch.tensor(label, dtype=torch.int64)
-            labels = F.one_hot(label_tensor, num_classes)
+            pid = [labels[i] for i in indices]
+            pid = torch.tensor(pid, dtype=torch.int64).view(1, num_points)
             # print(points.shape)
             # print(labels.shape)
+            # print(pid.shape)
 
             # Check if datasets already exist before creating them.
             if f'data{idx}' not in h5f:
                 h5f.create_dataset(f'data{idx}', data=points)
+            if f'pid{idx}' not in h5f:
+                h5f.create_dataset(f'pid{idx}', data=pid)
             if f'label{idx}' not in h5f:
                 h5f.create_dataset(f'label{idx}', data=labels)
+
 
 def dataset():
     with open(list_file_path, "r") as file:
         content = file.read()
         str_lists = content.split("\n\n")
         lists = [ast.literal_eval(str_list) for str_list in str_lists]
-        # 8k
-        # b1 train 0-150,170-200,210-300 test 150-170 validation 200-210
-        # b2 train 0-150,180-300         test 150-170 validation 170-180
-        # 10k
-        # b1 train 30-300  test 0-20 validation 20-30
-        # b2 train 30-300  test 0-20 validation 20-30
-        data_list = lists[4][200:] + lists[5][200:]
-        label_list = lists[6][200:] + lists[7][200:]
-
+        # 200samples crosspoint b1 train 0-100 test 100-120 val 120-130
+        # 900samples crosspoint b1 train 0-250 val 250:300 test 250:300 b2 train 0-200 teat 200:300 
+        data_list = lists[0][:250] + lists[1][:250] + lists[4][:200] + lists[5][:200]
+        label_list = lists[2][:250] + lists[3][:250] + lists[6][:200] + lists[7][:200]
+        
     main(data_list, label_list)
 
 

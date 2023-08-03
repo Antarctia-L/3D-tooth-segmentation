@@ -29,29 +29,29 @@ CrossPoint fine-tuned models on MICCAI dataset [here.](https://drive.google.com/
 
 ## Progress
 
-* Dataset Production: 
-    * Read the data file path
+* Dataset Production: `datasets/dataset.py`
+    * Read the data file path: `datasets/dataloader.py`
     * Make model point clouds: Uniform downsampling
     * Extract key features: Coordinates of center points (x,y,z,num_channels = 3) 
     * Rearrange labels
     * Split datasets: Train : Validation: Test = 900 : 50 : 250
-* Data Preprocessing:
+* Data Preprocessing: `datasets/shapenet_part.py`
     * Load dataset
     * Reshape tensors: Data - Pointclouds(num_points, 3) / Label - Categories(num_points, 1) / Seg - Segmentation part labels(num_points,)
-* Fine-tuning:
+* Fine-tuning: `train_partseg.py`
     * Pretrained dgcnn feature extractor
     * Adding output layers
     * Training: -- optimizer SGD --lr 0.001 --scheduler 'cos' --dropout 0.5 --k 40
     * Save best weights
-* Evaluation:
-    * Loss: cal_loss
-    * Accuracy: metrics.accuracy_score()
-    * mIou
-* Visualization
-    * Running logs
-    * Train loss / Train mIou
-    * Validation loss / Validation mIou
-* Testing:
+    * Evaluation:
+        * Loss: cal_loss
+        * Accuracy: metrics.accuracy_score()
+        * mIou
+    * Visualization
+        * Running logs
+        * Train loss / Train mIou
+        * Validation loss / Validation mIou
+* Testing: `test_result.py`
     * Read the data file path
     * Make model point clouds
     * Extract key features
@@ -60,6 +60,6 @@ CrossPoint fine-tuned models on MICCAI dataset [here.](https://drive.google.com/
     * Load checkpoints
     * Evaluation: Accuracy, mIou, DSC, PPV, SEN
     * Visualization
-* Extended:
+* Extended: `extended`
     * Mean shape filters
     * Geometric similarity calculation
